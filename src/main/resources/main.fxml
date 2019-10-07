@@ -24,7 +24,7 @@
          <children>
             <HBox prefHeight="50.0" prefWidth="200.0" HBox.hgrow="ALWAYS">
                <children>
-                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Отправить файл" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
+                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#sendFile" text="Отправить файл" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
                   <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#deleteSelectedLocalFile" text="Удалить файл" wrapText="true" HBox.hgrow="ALWAYS" />
                   <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#refreshLocalFilesList" text="Оновить" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
                </children>
@@ -32,8 +32,8 @@
             <HBox prefHeight="100.0" prefWidth="200.0" HBox.hgrow="ALWAYS">
                <children>
                   <Button fx:id="btDownload" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#downloadFile" text="Скачать файл" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
-                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Удалить файл" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
-                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Оновить" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
+                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#deleteSelectedServerFile" text="Удалить файл" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
+                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#refreshServerFilesList" text="Оновить" textAlignment="CENTER" wrapText="true" HBox.hgrow="ALWAYS" />
                </children></HBox>
          </children>
       </HBox>

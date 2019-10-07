@@ -10,19 +10,16 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
+import javafx.beans.property.*;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
-import javafx.scene.control.SelectionMode;
+import util.FileDeleteRequest;
+import util.FileMessage;
 import util.FileRequest;
+import util.ListMessage;
 
 import java.io.IOException;
 import java.net.URL;
@@ -39,15 +36,15 @@ public class MainController implements Initializable {
     @FXML
     ListView<String> serverFilesList;
 
-    final String HOST = "localhost";
-    final int PORT = 8182;
+    private final String HOST = "localhost";
+    private final int PORT = 8182;
     private Channel channel;
     private EventLoopGroup workerGroup;
 
 
     //разобраться с пропертями
-//    private StringProperty refreshList = new SimpleStringProperty("");
-//    private BooleanProperty downloadFile = new SimpleBooleanProperty(false);
+    private ListProperty<String> refreshServerList = new SimpleListProperty<>();
+    private ListProperty<String> refreshLocalList = new SimpleListProperty<>();
 
 
 
@@ -70,7 +67,7 @@ public class MainController implements Initializable {
                         socketChannel.pipeline().addLast(
                                 new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
                                 new ObjectEncoder(),
-                                new ClientHandler());
+                                new ClientHandler(refreshServerList, refreshLocalList));
                     }
                 });
 
@@ -81,6 +78,8 @@ public class MainController implements Initializable {
             }
         };
         new Thread(task).start();
+        refreshServerList.bind(serverFilesList.itemsProperty());
+        refreshLocalList.bind(localFilesList.itemsProperty());
         refreshLocalFilesList();
     }
 
@@ -104,10 +103,22 @@ public class MainController implements Initializable {
         }
     }
 
+    public void refreshServerFilesList() {
+        channel.writeAndFlush(new ListMessage());
+    }
+
     public void downloadFile() {
-//        channel.writeAndFlush(new FileRequest(serverFilesList.getSelectionModel().getSelectedItem()));
-        channel.writeAndFlush(new FileRequest("1.txt"));
-        refreshLocalFilesList();
+        channel.writeAndFlush(new FileRequest(serverFilesList.getSelectionModel().getSelectedItem()));
+//        channel.writeAndFlush(new FileRequest("1.txt"));
+    }
+
+    public void sendFile() {
+        try {
+            channel.writeAndFlush(new FileMessage(Paths.get("client_storage/" + localFilesList.getSelectionModel().getSelectedItem())));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        refreshServerFilesList();
     }
 
     public void deleteSelectedLocalFile() {
@@ -117,6 +128,10 @@ public class MainController implements Initializable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void deleteSelectedServerFile() {
+        channel.writeAndFlush(new FileDeleteRequest(serverFilesList.getSelectionModel().getSelectedItem()));
     }
 
 }
