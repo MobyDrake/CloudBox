@@ -3,10 +3,7 @@ package server.Handlers;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
-import util.FileDeleteRequest;
-import util.FileMessage;
-import util.FileRequest;
-import util.ListMessage;
+import util.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,8 +40,15 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             if (msg instanceof FileDeleteRequest) {
                 FileDeleteRequest deleteRequest = (FileDeleteRequest) msg;
                 Files.delete(Paths.get("server_storage/" + deleteRequest.getFileName()));
-
                 ctx.writeAndFlush(new ListMessage(walkFiles()));
+            }
+            if (msg instanceof AuthRequest) {
+                AuthRequest auth = (AuthRequest) msg;
+                if (auth.getLogin().equals("Bob") && auth.getPassword().equals("123")) {
+                    auth.setAuth(true);
+                    ctx.writeAndFlush(auth);
+                    ctx.writeAndFlush(new ListMessage(walkFiles()));
+                }
             }
         } finally {
             ReferenceCountUtil.release(msg);
@@ -60,7 +64,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private ArrayList<String> walkFiles() {
         ArrayList<String> list = new ArrayList<>();
         try {
-            Files.list(Paths.get("server_storage")).map(p -> p.getFileName().toString()).forEach(list::add);
+            Files.list(Paths.get("server_storage/")).map(p -> p.getFileName().toString()).forEach(list::add);
         } catch (IOException e) {
             e.printStackTrace();
         }

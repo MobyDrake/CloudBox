@@ -10,11 +10,12 @@ public class ClientMain extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/main.fxml"));
+//        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/main.fxml"));
+        FXMLLoader fxmlLoader = new FXMLLoader(ClientMain.class.getResource("/main.fxml"));
         Parent root = fxmlLoader.load();
-        primaryStage.setTitle("CloudBox");
         Scene scene = new Scene(root);
         primaryStage.setScene(scene);
+        primaryStage.setTitle("CloudBox");
         primaryStage.show();
     }
 

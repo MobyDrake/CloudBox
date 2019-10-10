@@ -14,20 +14,18 @@ import javafx.beans.property.*;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
-import javafx.scene.control.ListView;
-import util.FileDeleteRequest;
-import util.FileMessage;
-import util.FileRequest;
-import util.ListMessage;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+import util.*;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ResourceBundle;
 
-public class MainController implements Initializable {
+public class MainController {
 
     @FXML
     Button btDownload;
@@ -36,6 +34,17 @@ public class MainController implements Initializable {
     @FXML
     ListView<String> serverFilesList;
 
+    @FXML
+    VBox boxAuth;
+
+    @FXML
+    VBox boxMain;
+
+    @FXML
+    TextField loginField;
+    @FXML
+    PasswordField passwordField;
+
     private final String HOST = "localhost";
     private final int PORT = 8182;
     private Channel channel;
@@ -43,44 +52,97 @@ public class MainController implements Initializable {
 
 
     //разобраться с пропертями
+    private StringProperty login = new SimpleStringProperty();
+    private BooleanProperty connected = new SimpleBooleanProperty(false);
+    private BooleanProperty authentication = new SimpleBooleanProperty(false);
     private ListProperty<String> refreshServerList = new SimpleListProperty<>();
     private ListProperty<String> refreshLocalList = new SimpleListProperty<>();
 
 
+    @FXML
+    public void initialize() {
+        connect();
+        boxAuth.visibleProperty().bind(connected);
+        boxAuth.managedProperty().bind(connected);
+        boxAuth.visibleProperty().bind(authentication.not());
+        boxAuth.managedProperty().bind(authentication.not());
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+        boxMain.visibleProperty().bind(authentication);
+        boxMain.managedProperty().bind(authentication);
 
+        refreshServerList.bind(serverFilesList.itemsProperty());
+        refreshLocalList.bind(localFilesList.itemsProperty());
+
+    }
+
+    private void connect() {
         workerGroup = new NioEventLoopGroup();
 
         Task<Channel> task = new Task<Channel>() {
 
             @Override
             protected Channel call() throws Exception {
+                updateMessage("Bootstrapping");
+                updateProgress(0.1d, 1.0d);
+
                 Bootstrap bootstrap = new Bootstrap();
                 bootstrap.group(workerGroup);
                 bootstrap.channel(NioSocketChannel.class);
                 bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+                //освобождает от указания адреса и порта в bootstrap.connect(HOST, PORT)
+                bootstrap.remoteAddress(new InetSocketAddress(HOST, PORT));
+
                 bootstrap.handler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel socketChannel) throws Exception {
                         socketChannel.pipeline().addLast(
                                 new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
                                 new ObjectEncoder(),
-                                new ClientHandler(refreshServerList, refreshLocalList));
+                                new ClientHandler(authentication, login, refreshServerList, refreshLocalList));
                     }
                 });
 
-                ChannelFuture channelFuture = bootstrap.connect(HOST, PORT).sync();
-                Channel chn = channelFuture.channel();
-                channel = chn;
+                ChannelFuture future = bootstrap.connect();
+                Channel chn = future.channel();
+
+                updateMessage("Connecting");
+                updateProgress(0.2d, 1.0d);
+
+                future.sync();
+
                 return chn;
             }
+
+            @Override
+            protected void succeeded() {
+                channel = getValue();
+                connected.set(true);
+            }
+
+            @Override
+            protected void failed() {
+                Throwable exc = getException();
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Ошибка");
+                alert.setHeaderText( exc.getClass().getName() );
+                alert.setContentText( exc.getMessage() );
+                alert.showAndWait();
+
+                connected.set(false);
+            }
         };
+
         new Thread(task).start();
-        refreshServerList.bind(serverFilesList.itemsProperty());
-        refreshLocalList.bind(localFilesList.itemsProperty());
-        refreshLocalFilesList();
+    }
+
+    public void authClient() {
+        if (!connected.get()) {
+            connect();
+        }
+
+        channel.writeAndFlush(new AuthRequest(loginField.getText(), passwordField.getText()));
+        loginField.clear();
+        passwordField.clear();
     }
 
     public void refreshLocalFilesList() {
