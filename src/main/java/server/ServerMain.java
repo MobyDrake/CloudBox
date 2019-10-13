@@ -11,15 +11,19 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
-import server.Handlers.MainHandler;
+import server.Handlers.ServerHandler;
+
+import java.sql.SQLException;
 
 public class ServerMain {
 
-    public void run() throws InterruptedException {
+    public void run() throws InterruptedException, SQLException {
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
         try {
+            AuthService.connect();
+
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(bossGroup, workerGroup);
             bootstrap.channel(NioServerSocketChannel.class);
@@ -29,7 +33,7 @@ public class ServerMain {
                     socketChannel.pipeline().addLast(
                             new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
                             new ObjectEncoder(),
-                            new MainHandler()
+                            new ServerHandler()
                     );
                 }
             });
@@ -40,15 +44,12 @@ public class ServerMain {
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
+            AuthService.disconnect();
         }
     }
 
-    public static void main(String[] args) {
-        try {
-            new ServerMain().run();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+    public static void main(String[] args) throws SQLException, InterruptedException {
+        new ServerMain().run();
     }
 
 }

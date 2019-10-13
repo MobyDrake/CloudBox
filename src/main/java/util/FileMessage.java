@@ -6,11 +6,13 @@ import java.nio.file.Path;
 
 public class FileMessage extends Message {
     private String fileName;
+    private String user;
     private byte[] data;
 
-    public FileMessage(Path path) throws IOException {
+    public FileMessage(String user, Path path) throws IOException {
         this.fileName = path.getFileName().toString();
         this.data = Files.readAllBytes(path);
+        this.user = user;
     }
 
     public String getFileName() {
@@ -19,5 +21,9 @@ public class FileMessage extends Message {
 
     public byte[] getData() {
         return data;
+    }
+
+    public String getUser() {
+        return user;
     }
 }

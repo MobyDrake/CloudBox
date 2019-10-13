@@ -13,19 +13,16 @@ import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import util.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ResourceBundle;
 
-public class MainController {
+public class ClientController {
 
     @FXML
     Button btDownload;
@@ -50,9 +47,7 @@ public class MainController {
     private Channel channel;
     private EventLoopGroup workerGroup;
 
-
-    //разобраться с пропертями
-    private StringProperty login = new SimpleStringProperty();
+    private StringProperty user = new SimpleStringProperty();
     private BooleanProperty connected = new SimpleBooleanProperty(false);
     private BooleanProperty authentication = new SimpleBooleanProperty(false);
     private ListProperty<String> refreshServerList = new SimpleListProperty<>();
@@ -72,7 +67,6 @@ public class MainController {
 
         refreshServerList.bind(serverFilesList.itemsProperty());
         refreshLocalList.bind(localFilesList.itemsProperty());
-
     }
 
     private void connect() {
@@ -98,7 +92,7 @@ public class MainController {
                         socketChannel.pipeline().addLast(
                                 new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
                                 new ObjectEncoder(),
-                                new ClientHandler(authentication, login, refreshServerList, refreshLocalList));
+                                new ClientHandler(authentication, user, refreshServerList, refreshLocalList));
                     }
                 });
 
@@ -137,55 +131,56 @@ public class MainController {
 
     public void authClient() {
         if (!connected.get()) {
-            connect();
+            Platform.runLater(this::connect);
         }
 
-        channel.writeAndFlush(new AuthRequest(loginField.getText(), passwordField.getText()));
+        channel.writeAndFlush(new AuthRequest(loginField.getText().trim(), passwordField.getText().trim()));
         loginField.clear();
         passwordField.clear();
     }
 
     public void refreshLocalFilesList() {
-        if (Platform.isFxApplicationThread()) {
-            try {
-                localFilesList.getItems().clear();
-                Files.list(Paths.get("client_storage")).map(p -> p.getFileName().toString()).forEach(o -> localFilesList.getItems().add(o));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
+        if (Files.exists(Paths.get("client_storage/" + user.getValue()))) {
             Platform.runLater(() -> {
                 try {
                     localFilesList.getItems().clear();
-                    Files.list(Paths.get("client_storage")).map(p -> p.getFileName().toString()).forEach(o -> localFilesList.getItems().add(o));
+                    Files.list(Paths.get("client_storage/" + user.getValue())).map(p -> p.getFileName().toString()).forEach(o -> localFilesList.getItems().add(o));
+                    if (localFilesList.getItems().isEmpty()) {
+                        localFilesList.getItems().add("(Папка пустая)");
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             });
+        } else {
+            try {
+                Files.createDirectory(Paths.get("client_storage/" + user.getValue() + "/"));
+                refreshLocalFilesList();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public void refreshServerFilesList() {
-        channel.writeAndFlush(new ListMessage());
+        channel.writeAndFlush(new ListMessage(user.getValue()));
     }
 
     public void downloadFile() {
-        channel.writeAndFlush(new FileRequest(serverFilesList.getSelectionModel().getSelectedItem()));
-//        channel.writeAndFlush(new FileRequest("1.txt"));
+        channel.writeAndFlush(new FileRequest(user.getValue(), serverFilesList.getSelectionModel().getSelectedItem()));
     }
 
     public void sendFile() {
         try {
-            channel.writeAndFlush(new FileMessage(Paths.get("client_storage/" + localFilesList.getSelectionModel().getSelectedItem())));
+            channel.writeAndFlush(new FileMessage(user.getValue(), Paths.get("client_storage/" + user.getValue() + "/" + localFilesList.getSelectionModel().getSelectedItem())));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        refreshServerFilesList();
     }
 
     public void deleteSelectedLocalFile() {
         try {
-            Files.delete(Paths.get("client_storage/" + localFilesList.getSelectionModel().getSelectedItem()));
+            Files.delete(Paths.get("client_storage/" + user.getValue() + "/" + localFilesList.getSelectionModel().getSelectedItem()));
             refreshLocalFilesList();
         } catch (IOException e) {
             e.printStackTrace();
@@ -193,7 +188,7 @@ public class MainController {
     }
 
     public void deleteSelectedServerFile() {
-        channel.writeAndFlush(new FileDeleteRequest(serverFilesList.getSelectionModel().getSelectedItem()));
+        channel.writeAndFlush(new FileDeleteRequest(user.getValue(), serverFilesList.getSelectionModel().getSelectedItem()));
     }
 
 }

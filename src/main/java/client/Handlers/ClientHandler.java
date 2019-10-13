@@ -10,6 +10,7 @@ import util.AuthRequest;
 import util.FileMessage;
 import util.ListMessage;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -35,8 +36,9 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
         }
         if (msg instanceof FileMessage) {
             FileMessage fm = (FileMessage) msg;
-            Files.write(Paths.get("client_storage/" + fm.getFileName()), fm.getData(), StandardOpenOption.CREATE);
+            Files.write(Paths.get("client_storage/" + fm.getUser() + "/" + fm.getFileName()), fm.getData(), StandardOpenOption.CREATE);
             Platform.runLater(() -> listLocal.add(fm.getFileName()));
+            refreshLocalFilesList(fm.getUser());
         }
         if (msg instanceof ListMessage) {
             ListMessage listMessage = (ListMessage) msg;
@@ -47,7 +49,30 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
             if (auth.isAuth()) {
                 Platform.runLater(() -> user.setValue(auth.getLogin()));
                 Platform.runLater(() -> authentication.set(true));
+                refreshLocalFilesList(auth.getLogin());
             }
         }
+    }
+
+    private void refreshLocalFilesList(String user) {
+        Platform.runLater(() -> {
+            try {
+                listLocal.clear();
+                if (Files.exists(Paths.get("client_storage/" + user))) {
+                    Files.list(Paths.get("client_storage/" + user)).map(p -> p.getFileName().toString()).forEach(o -> listLocal.add(o));
+                    if (listLocal.isEmpty()) {
+                        listLocal.add("(Папка пустая)");
+                    }
+                } else {
+                    Files.createDirectory(Paths.get("client_storage/" + user + "/"));
+                    Files.list(Paths.get("client_storage/" + user)).map(p -> p.getFileName().toString()).forEach(o -> listLocal.add(o));
+                    if (listLocal.isEmpty()) {
+                        listLocal.add("(Папка пустая)");
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 }
